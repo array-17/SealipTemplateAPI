@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GenericAPI Tester</title>
+  <style>body{font-family:system-ui,Segoe UI,Arial;padding:16px}textarea{width:100%;height:240px;font-family:monospace}button{margin:6px 4px}</style>
+</head>
+<body>
+  <h2>GenericAPI Tester</h2>
+  <p>Use the sample payload below or paste your own. Click <strong>Create Job</strong> to POST to <code>/Jobs/create</code>.</p>
+
+  <label>Job payload (JSON):</label>
+  <textarea id="payload">{
+  "projectID": "1",
+  "revID": "1",
+  "cases": [
+    {
+    }
+  ]
+}</textarea>
+
+  <div>
+    <button id="createBtn">Create Job</button>
+    <button id="startBtn" disabled>Start Job</button>
+    <button id="statusBtn" disabled>Get Status</button>
+    <button id="resultsBtn" disabled>Get Results</button>
+    <button id="schemaBtn">Get Schema</button>
+    <button id="schemaBricksBtn">Get BricksApp Schema</button>
+  </div>
+  <div style="margin-top:8px">
+    <label style="margin-right:8px">ProjectID:</label>
+    <input id="projectInput" style="width:140px;margin-right:8px" placeholder="projectID" />
+    <button id="projBtn">Get Jobs By Project</button>
+    <label style="margin-left:16px;margin-right:8px">RevID:</label>
+    <input id="revInput" style="width:140px;margin-right:8px" placeholder="revID" />
+    <button id="revBtn">Get Jobs By Rev</button>
+    <button id="revPasteBtn" title="Paste from clipboard">Paste RevID</button>
+  </div>
+
+  <h3>Logs</h3>
+  <pre id="log" style="background:#f4f4f4;padding:10px;height:200px;overflow:auto"></pre>
+
+  <h3>Schema</h3>
+  <pre id="schema" style="background:#fff8e1;padding:10px;height:280px;overflow:auto;border:1px solid #eee"></pre>
+
+  <script>
+    const logEl = document.getElementById('log');
+    const createBtn = document.getElementById('createBtn');
+    const startBtn = document.getElementById('startBtn');
+    const statusBtn = document.getElementById('statusBtn');
+    const resultsBtn = document.getElementById('resultsBtn');
+    const schemaBtn = document.getElementById('schemaBtn');
+    const schemaBricksBtn = document.getElementById('schemaBricksBtn');
+    const schemaEl = document.getElementById('schema');
+    const payloadEl = document.getElementById('payload');
+    const projectInput = document.getElementById('projectInput');
+    const projBtn = document.getElementById('projBtn');
+    const revInput = document.getElementById('revInput');
+    const revBtn = document.getElementById('revBtn');
+    const revPasteBtn = document.getElementById('revPasteBtn');
+    let currentBatch = null;
+
+    function log(...args){
+      const s = args.map(a=>typeof a==='object'?JSON.stringify(a,null,2):String(a)).join(' ');
+      logEl.textContent += s + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function schemaToSample(schema){
+      if(!schema || typeof schema !== 'object') return null;
+
+      if(schema.example !== undefined) return schema.example;
+      if(schema.default !== undefined) return schema.default;
+      if(Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0];
+
+      if(schema['x-2dSegmentArray'] || schema.format === '2d-segment-array'){
+        return [[[0,0],[1,1]]];
+      }
+
+      const t = schema.type;
+      if(t === 'object' || (!t && schema.properties)){
+        const props = schema.properties || {};
+        const out = {};
+        for(const key of Object.keys(props)){
+          out[key] = schemaToSample(props[key]);
+        }
+        return out;
+      }
+
+      if(t === 'array'){
+        if(!schema.items) return [];
+        return [schemaToSample(schema.items)];
+      }
+
+      if(t === 'integer' || t === 'number') return 0;
+      if(t === 'boolean') return false;
+      if(t === 'string') return '';
+
+      if(schema.properties){
+        const out = {};
+        for(const key of Object.keys(schema.properties)){
+          out[key] = schemaToSample(schema.properties[key]);
+        }
+        return out;
+      }
+
+      return null;
+    }
+
+    function buildPayloadFromSchema(schema){
+      const sample = schemaToSample(schema);
+      if(sample && typeof sample === 'object'){
+        if(sample.projectID == null) sample.projectID = '1';
+        if(sample.revID == null) sample.revID = '1';
+      }
+      payloadEl.value = JSON.stringify(sample, null, 2);
+    }
+
+    async function createJob(){
+      let payload;
+      try{ payload = JSON.parse(document.getElementById('payload').value); }
+      catch(e){ alert('Invalid JSON'); return }
+
+      log('Creating job...');
+      try{
+        const res = await fetch('/Jobs/create', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        const j = await res.json();
+        log('Create response:', j);
+        if(j.batchUUID){
+          currentBatch = j.batchUUID;
+          startBtn.disabled = false; statusBtn.disabled = false; resultsBtn.disabled = false;
+        }
+      }catch(e){ log('Create error', e); }
+    }
+
+    async function startJob(){
+      if(!currentBatch){ alert('No batchUUID'); return }
+      log('Starting job', currentBatch);
+      try{
+        const res = await fetch(`/Jobs/${currentBatch}/start`, {method:'POST'});
+        const j = await res.json();
+        log('Start response:', j);
+        pollStatus();
+      }catch(e){ log('Start error', e); }
+    }
+
+    async function getStatus(){
+      if(!currentBatch) return log('No batchUUID');
+      try{
+        const res = await fetch(`/Jobs/${currentBatch}/status`);
+        const j = await res.json();
+        log('Status:', j);
+        return j;
+      }catch(e){ log('Status error', e); }
+    }
+
+    async function getResults(){
+      if(!currentBatch) return log('No batchUUID');
+      try{
+        const res = await fetch(`/Jobs/${currentBatch}/results`);
+        const j = await res.json();
+        log('Results:', j);
+        return j;
+      }catch(e){ log('Results error', e); }
+    }
+
+    async function getSchema(plugin){
+      try{
+        const suffix = plugin ? `?plugin=${encodeURIComponent(plugin)}` : '';
+        const res = await fetch('/Jobs/schema' + suffix);
+        const j = await res.json();
+        log('Schema fetched', plugin || 'generic');
+        schemaEl.textContent = JSON.stringify(j, null, 2);
+        buildPayloadFromSchema(j);
+        log('Payload rebuilt from schema');
+        // If Lengths is present, highlight it in the log
+        try{
+          const items = j.properties && j.properties.cases && j.properties.cases.items;
+          const props = items && items.properties;
+          if(props && props.Lengths){
+            log('Lengths schema marker:', props.Lengths.format || props.Lengths['x-2dSegmentArray'] || props.Lengths.type);
+          }
+        }catch(e){/* ignore */}
+        return j;
+      }catch(e){ log('Schema error', e); }
+    }
+
+    async function getJobsByProject(projectID){
+      if(!projectID) return log('No ProjectID provided');
+      try{
+        const res = await fetch(`/Jobs/project/${encodeURIComponent(projectID)}`);
+        const j = await res.json();
+        log('Jobs for project', projectID, j);
+        return j;
+      }catch(e){ log('GetJobsByProject error', e); }
+    }
+
+    async function getJobsByRev(revID){
+      if(!revID) return log('No RevID provided');
+      try{
+        const res = await fetch(`/Jobs/rev/${encodeURIComponent(revID)}`);
+        const j = await res.json();
+        log('Jobs for rev', revID, j);
+        return j;
+      }catch(e){ log('GetJobsByRev error', e); }
+    }
+    // allow pressing Enter in the RevID input to trigger the request
+    revInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        getJobsByRev(revInput.value);
+      }
+    });
+    // paste from clipboard into RevID input and trigger
+    revPasteBtn.addEventListener('click', async () => {
+      try{
+        const text = await navigator.clipboard.readText();
+        if(text){
+          revInput.value = text.trim();
+          log('Pasted RevID from clipboard');
+          getJobsByRev(revInput.value);
+        } else {
+          log('Clipboard empty');
+        }
+      }catch(err){
+        log('Clipboard paste failed', err);
+      }
+    });
+
+    let pollHandle = null;
+    async function pollStatus(){
+      if(pollHandle) return;
+      pollHandle = setInterval(async ()=>{
+        const s = await getStatus();
+        if(s && s.cases){
+          const allDone = s.cases.every(c => c.status && (c.status.toLowerCase()==='completed' || c.status.toLowerCase()==='failed'));
+          if(allDone){ clearInterval(pollHandle); pollHandle=null; log('All cases finished'); getResults(); }
+        }
+      }, 1500);
+    }
+
+    createBtn.addEventListener('click', createJob);
+    startBtn.addEventListener('click', startJob);
+    statusBtn.addEventListener('click', getStatus);
+    resultsBtn.addEventListener('click', getResults);
+    schemaBtn.addEventListener('click', ()=>getSchema());
+    schemaBricksBtn.addEventListener('click', ()=>getSchema('BricksApp'));
+    projBtn.addEventListener('click', ()=>getJobsByProject(projectInput.value));
+    revBtn.addEventListener('click', ()=>getJobsByRev(revInput.value));
+  </script>
+</body>
+</html>
