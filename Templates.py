@@ -21,10 +21,11 @@ class Node:
 
 
 class Parameter(Node):
-    def __init__(self, name, parameter_type="string", description=None):
+    def __init__(self, name, parameter_type="string", description=None, units=""):
         super().__init__(name)
         self.type = parameter_type
         self.description = description
+        self.units = units or ""
 
     def to_dict(self):
         return {
@@ -32,6 +33,7 @@ class Parameter(Node):
             "name": self.name,
             "parameter_type": self.type,
             "description": self.description,
+            "units": self.units,
         }
 
     def to_frontend_parameter(self, group_path=None):
@@ -40,7 +42,7 @@ class Parameter(Node):
             "name": self.name,
             "type": frontend_type,
             "comment": self.description or "",
-            "units": "",
+            "units": self.units,
         }
         if group_path:
             payload["group"] = group_path
@@ -62,8 +64,13 @@ class Group(Node):
     def addChild(self, child):
         return self.add_child(child)
 
-    def add_parameter(self, name, parameter_type="string", description=None):
-        parameter = Parameter(name=name, parameter_type=parameter_type, description=description)
+    def add_parameter(self, name, parameter_type="string", description=None, units=""):
+        parameter = Parameter(
+            name=name,
+            parameter_type=parameter_type,
+            description=description,
+            units=units,
+        )
         self.children.append(parameter)
         return parameter
 
@@ -117,8 +124,13 @@ class Template:
         self.nodes.append(group)
         return group
 
-    def add_parameter(self, name, parameter_type="string", description=None):
-        parameter = Parameter(name=name, parameter_type=parameter_type, description=description)
+    def add_parameter(self, name, parameter_type="string", description=None, units=""):
+        parameter = Parameter(
+            name=name,
+            parameter_type=parameter_type,
+            description=description,
+            units=units,
+        )
         self.nodes.append(parameter)
         return parameter
 
@@ -170,6 +182,7 @@ def _build_node(node_definition):
             name=node_name,
             parameter_type=node_definition.get("parameter_type", "string"),
             description=node_definition.get("description"),
+            units=node_definition.get("units", ""),
         )
 
     if node_type == "group":
@@ -199,6 +212,7 @@ def define_template_from_frontend_parameters(name, description, parameters):
 
         parameter_type = param.get("type", "single")
         parameter_description = param.get("comment") or param.get("description")
+        parameter_units = param.get("units", "")
         group_path = param.get("group")
 
         if not group_path:
@@ -206,6 +220,7 @@ def define_template_from_frontend_parameters(name, description, parameters):
                 name=parameter_name,
                 parameter_type=parameter_type,
                 description=parameter_description,
+                units=parameter_units,
             )
             continue
 
@@ -215,6 +230,7 @@ def define_template_from_frontend_parameters(name, description, parameters):
                 name=parameter_name,
                 parameter_type=parameter_type,
                 description=parameter_description,
+                units=parameter_units,
             )
             continue
 
@@ -226,6 +242,7 @@ def define_template_from_frontend_parameters(name, description, parameters):
             name=parameter_name,
             parameter_type=parameter_type,
             description=parameter_description,
+            units=parameter_units,
         )
 
     return template
@@ -240,15 +257,15 @@ template = define_template(
             "name": "InputData",  # top-level group
             "children": [
                 # 1 child parameter directly under top-level group
-                {"type": "parameter", "name": "project_id", "parameter_type": "string"},
+                {"type": "parameter", "name": "project_id", "parameter_type": "string", "units": ""},
 
                 # child group 1 with 2 parameters
                 {
                     "type": "group",
                     "name": "Geometry",
                     "children": [
-                        {"type": "parameter", "name": "outer_diameter", "parameter_type": "number"},
-                        {"type": "parameter", "name": "wall_thickness", "parameter_type": "number"},
+                        {"type": "parameter", "name": "outer_diameter", "parameter_type": "number", "units": "m"},
+                        {"type": "parameter", "name": "wall_thickness", "parameter_type": "number", "units": "m"},
                     ],
                 },
 
@@ -257,8 +274,8 @@ template = define_template(
                     "type": "group",
                     "name": "Material",
                     "children": [
-                        {"type": "parameter", "name": "youngs_modulus", "parameter_type": "number"},
-                        {"type": "parameter", "name": "density", "parameter_type": "number"},
+                        {"type": "parameter", "name": "youngs_modulus", "parameter_type": "number", "units": "Pa"},
+                        {"type": "parameter", "name": "density", "parameter_type": "number", "units": "kg/m^3"},
                     ],
                 },
             ],

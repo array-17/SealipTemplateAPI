@@ -226,15 +226,15 @@ class AddTemplate(Template):
             "name": "Cable_Add",  # top-level group
             "children": [
                 # 1 child parameter directly under top-level group
-                {"type": "parameter", "name": "Designation", "parameter_type": "string"},
+                {"type": "parameter", "name": "Designation", "parameter_type": "string", "units": ""},
 
                 # child group 1 with 2 parameters
                 {
                     "type": "group",
                     "name": "Geometry",
                     "children": [
-                        {"type": "parameter", "name": "outer_diameter", "parameter_type": "number"},
-                        {"type": "parameter", "name": "wall_thickness", "parameter_type": "number"},
+                        {"type": "parameter", "name": "outer_diameter", "parameter_type": "number", "units": "m"},
+                        {"type": "parameter", "name": "wall_thickness", "parameter_type": "number", "units": "m"},
                     ],
                 },
 
@@ -243,8 +243,8 @@ class AddTemplate(Template):
                     "type": "group",
                     "name": "Material",
                     "children": [
-                        {"type": "parameter", "name": "youngs_modulus", "parameter_type": "number"},
-                        {"type": "parameter", "name": "density", "parameter_type": "number"},
+                        {"type": "parameter", "name": "youngs_modulus", "parameter_type": "number", "units": "Pa"},
+                        {"type": "parameter", "name": "density", "parameter_type": "number", "units": "kg/m^3"},
                     ],
                 },
             ],
