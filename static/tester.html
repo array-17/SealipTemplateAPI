@@ -26,6 +26,8 @@
     <button id="resultsBtn" disabled>Get Results</button>
     <button id="schemaBtn">Get Schema</button>
     <button id="schemaBricksBtn">Get BricksApp Schema</button>
+    <button id="templatesBtn">Get Templates</button>
+    <button id="fillPayloadBtn">Fill Payload</button>
   </div>
   <div style="margin-top:8px">
     <label style="margin-right:8px">ProjectID:</label>
@@ -43,6 +45,9 @@
   <h3>Schema</h3>
   <pre id="schema" style="background:#fff8e1;padding:10px;height:280px;overflow:auto;border:1px solid #eee"></pre>
 
+  <h3>Templates</h3>
+  <pre id="templates" style="background:#eaf7ff;padding:10px;height:220px;overflow:auto;border:1px solid #eee"></pre>
+
   <script>
     const logEl = document.getElementById('log');
     const createBtn = document.getElementById('createBtn');
@@ -51,7 +56,10 @@
     const resultsBtn = document.getElementById('resultsBtn');
     const schemaBtn = document.getElementById('schemaBtn');
     const schemaBricksBtn = document.getElementById('schemaBricksBtn');
+    const templatesBtn = document.getElementById('templatesBtn');
+    const fillPayloadBtn = document.getElementById('fillPayloadBtn');
     const schemaEl = document.getElementById('schema');
+    const templatesEl = document.getElementById('templates');
     const payloadEl = document.getElementById('payload');
     const projectInput = document.getElementById('projectInput');
     const projBtn = document.getElementById('projBtn');
@@ -112,8 +120,33 @@
       if(sample && typeof sample === 'object'){
         if(sample.projectID == null) sample.projectID = '1';
         if(sample.revID == null) sample.revID = '1';
+        if(sample.cases == null) sample.cases = [{}];
+        if(Array.isArray(sample.cases) && sample.cases.length === 0) sample.cases = [{}];
       }
       payloadEl.value = JSON.stringify(sample, null, 2);
+    }
+
+    async function fillPayload(){
+      try{
+        const existingSchemaText = (schemaEl.textContent || '').trim();
+        if(existingSchemaText){
+          const parsed = JSON.parse(existingSchemaText);
+          buildPayloadFromSchema(parsed);
+          log('Payload filled from current schema');
+          return;
+        }
+
+        const schema = await getSchema();
+        if(schema){
+          buildPayloadFromSchema(schema);
+          log('Payload filled from fetched schema');
+          return;
+        }
+
+        log('Unable to fill payload: schema not available');
+      }catch(e){
+        log('Fill payload error', e);
+      }
     }
 
     async function createJob(){
@@ -185,6 +218,16 @@
       }catch(e){ log('Schema error', e); }
     }
 
+    async function getTemplates(){
+      try{
+        const res = await fetch('/Templates');
+        const j = await res.json();
+        templatesEl.textContent = JSON.stringify(j, null, 2);
+        log('Templates fetched');
+        return j;
+      }catch(e){ log('Templates error', e); }
+    }
+
     async function getJobsByProject(projectID){
       if(!projectID) return log('No ProjectID provided');
       try{
@@ -245,6 +288,8 @@
     resultsBtn.addEventListener('click', getResults);
     schemaBtn.addEventListener('click', ()=>getSchema());
     schemaBricksBtn.addEventListener('click', ()=>getSchema('BricksApp'));
+    templatesBtn.addEventListener('click', getTemplates);
+    fillPayloadBtn.addEventListener('click', fillPayload);
     projBtn.addEventListener('click', ()=>getJobsByProject(projectInput.value));
     revBtn.addEventListener('click', ()=>getJobsByRev(revInput.value));
   </script>

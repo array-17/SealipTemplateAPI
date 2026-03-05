@@ -1,9 +1,16 @@
 from flask import Flask, jsonify, request
 from jsonschema import validate, ValidationError
-from Add import AddAction, AddResults, GraphResults
 import threading
-from adapters import UUIDExists, jobClass, CaseClass, ActionBase, ResultsBase
+from adapters import UUIDExists, jobClass
 from JobRunner import JobRunner
+from fork_config import (
+    API_META,
+    ACTION_CLASS,
+    RESULTS_CLASSES,
+    TEMPLATE_CLASSES,
+    DOWNLOADABLE_CLASS,
+    validate_fork_config,
+)
 
 app = Flask(__name__)
 
@@ -11,38 +18,25 @@ app = Flask(__name__)
 
 ##
 
-#API details for noughtIQ
-API_META = {"name": "AddAPI", "version": "0.6"}
+validate_fork_config()
 
-ActionClass = AddAction  # Placeholder for the Action class - configure this for your specific implementation
-if(ActionClass is None):
-    raise Exception("No ActionClass defined for this API")
-if( not hasattr(ActionClass, 'perform_action') ):
-    raise Exception("ActionClass does not have perform_action method defined")
-if( not callable(getattr(ActionClass, 'perform_action')) ):
-    raise Exception("ActionClass.perform_action is not callable")
+ActionClass = ACTION_CLASS
+ResultsClasses = RESULTS_CLASSES
+TemplateClasses = TEMPLATE_CLASSES
 
-ResultsClasses = [AddResults, GraphResults]  # Placeholder for the Results classes - configure this for your specific implementation
-if( ResultsClasses is None or len(ResultsClasses) == 0 ):
-    raise Exception("No ResultsClasses defined for this API")
-for resultclass in ResultsClasses:
-    if( not hasattr(resultclass, 'process_results') ):
-        raise Exception(f"Results class {resultclass.__name__} does not have process_results method defined")
-    if( not callable(getattr(resultclass, 'process_results')) ):
-        raise Exception(f"Results class {resultclass.__name__}.process_results is not callable")
-    
-CaseClass = CaseClass  # Placeholder for the Case class
-if(CaseClass is None):
-    raise Exception("No CaseClass defined for this API")
-if( not hasattr(CaseClass, 'runCase') ):
-    raise Exception("CaseClass does not have runCase method defined")
+
 
 #Start the Job Runner
 job_runner = JobRunner(ActionClass, ResultsClasses)
 job_runner_thread = threading.Thread(target=job_runner.run_loop, daemon=True)
 job_runner_thread.start()
 
-@app.route('/NoughtAPI', methods=['GET'])
+@app.route('/', methods=['GET'])
+def index():
+    #return static/tester.html
+    return app.send_static_file('tester.html')
+
+@app.route('/NautAPI', methods=['GET'])
 def get_api_meta():
     #Returns the API metadata, this tells the program that the API exists on the given endpoint
     return jsonify(API_META)
@@ -196,6 +190,23 @@ def case_result(batchUUID, caseNumber, resultType):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/Templates', methods=['GET'])
+def get_templates():
+    # Return the templates for the frontend to render input forms, this is based on the Template classes defined in Templates.py
+    templates = []
+    for template_class in TemplateClasses:
+        template_instance = template_class()
+        if hasattr(template_instance, 'toFrontend_parameters') and callable(getattr(template_instance, 'toFrontend_parameters')):
+            templates.append(template_instance.toFrontend_parameters())
+        elif hasattr(template_instance, 'to_frontend_parameters') and callable(getattr(template_instance, 'to_frontend_parameters')):
+            templates.append(template_instance.to_frontend_parameters())
+        elif hasattr(template_instance, 'template') and hasattr(template_instance.template, 'to_frontend_parameters') and callable(getattr(template_instance.template, 'to_frontend_parameters')):
+            templates.append(template_instance.template.to_frontend_parameters())
+        else:
+            raise Exception(f"Template class {template_class.__name__} does not expose a frontend serialization method")
+    return jsonify({"templates": templates})
+
 @app.route('/Jobs/<string:jobUUID>/download', methods=['GET'])
 def download_job(jobUUID):
     """
@@ -204,7 +215,6 @@ def download_job(jobUUID):
         - cases: comma-separated list of case numbers (optional, defaults to all cases)
         - format: file format (optional, defaults to 'json'). Options: 'json', 'csv', etc.
     """
-    from Add import AddDownloadable
     from flask import send_file, Response
     import io
     import mimetypes
@@ -227,9 +237,9 @@ def download_job(jobUUID):
     
     try:
         # Create downloadable instance (job metadata is automatically loaded)
-        downloadable = AddDownloadable(jobUUID, case_numbers=case_numbers, 
-                                      ActionClass=ActionClass, 
-                                      ResultsClasses=ResultsClasses)
+        downloadable = DOWNLOADABLE_CLASS(jobUUID, case_numbers=case_numbers, 
+                          ActionClass=ActionClass, 
+                          ResultsClasses=ResultsClasses)
         
         # Generate download based on number of cases and format
         if case_numbers and len(case_numbers) == 1:

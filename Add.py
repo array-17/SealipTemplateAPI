@@ -1,5 +1,9 @@
 from adapters import ActionBase as BaseAction, DownloadableClass, ResultsBase as BaseResults
 from typing import Dict, Any, Optional
+try:
+    from .Templates import Template, define_template
+except ImportError:
+    from Templates import Template, define_template
 import os
 import json
 
@@ -208,3 +212,47 @@ class AddDownloadable(DownloadableClass):
         else:
             raise ValueError(f"Unsupported format: {file_format}")
         
+class AddTemplate(Template):
+    """
+    Template class to define the structure of the Add API parameters.
+    """
+
+    def __init__(self):
+        self.template = define_template( name="Cable Template",
+    description="Template for defining cable parameters with groups",
+    node_definitions=[
+        {
+            "type": "group",
+            "name": "Cable_Add",  # top-level group
+            "children": [
+                # 1 child parameter directly under top-level group
+                {"type": "parameter", "name": "Designation", "parameter_type": "string"},
+
+                # child group 1 with 2 parameters
+                {
+                    "type": "group",
+                    "name": "Geometry",
+                    "children": [
+                        {"type": "parameter", "name": "outer_diameter", "parameter_type": "number"},
+                        {"type": "parameter", "name": "wall_thickness", "parameter_type": "number"},
+                    ],
+                },
+
+                # child group 2 with 2 parameters
+                {
+                    "type": "group",
+                    "name": "Material",
+                    "children": [
+                        {"type": "parameter", "name": "youngs_modulus", "parameter_type": "number"},
+                        {"type": "parameter", "name": "density", "parameter_type": "number"},
+                    ],
+                },
+            ],
+        }
+    ],)
+
+    def to_frontend_parameters(self):
+        return self.template.to_frontend_parameters()
+
+    def toFrontend_parameters(self):
+        return self.to_frontend_parameters()

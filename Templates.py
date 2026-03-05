@@ -231,9 +231,6 @@ def define_template_from_frontend_parameters(name, description, parameters):
     return template
 
 
-
-from Templates import define_template
-
 template = define_template(
     name="Example Template",
     description="5 params across 3 groups",
