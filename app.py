@@ -300,7 +300,34 @@ def download_job(jobUUID):
 
 if __name__ == '__main__':
     import os
+    import socket
     import threading
     import base64, mimetypes
-    port = int(os.environ.get('PORT', 5006))
+    def _is_port_available(port, host='0.0.0.0'):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.bind((host, port))
+            return True
+        except OSError:
+            return False
+
+    def _find_free_port(preferred_start=5000, preferred_end=5010, host='0.0.0.0'):
+        env_port = os.environ.get('PORT')
+        if env_port:
+            try:
+                parsed = int(env_port)
+                if _is_port_available(parsed, host=host):
+                    return parsed
+            except ValueError:
+                pass
+
+        for candidate in range(preferred_start, preferred_end + 1):
+            if _is_port_available(candidate, host=host):
+                return candidate
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind((host, 0))
+            return sock.getsockname()[1]
+
+    port = _find_free_port()
     app.run(host='0.0.0.0', port=port)
