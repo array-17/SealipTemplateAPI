@@ -11,15 +11,15 @@ svc_display_name_ = "Sealip Template Service"
 svc_description_ = "Runs the Sealip Template Flask app as a Windows service."
 template_tags = ["sealip", "cable", "cps", "environment"]  # Example tags for this API
 
-from Sealip import AddAction, AddResults, GraphResults, AddDownloadable, CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate,StabalizationTemplate
+from Sealip import AddAction, AddResults, GraphResults, AddDownloadable, SNTemplate, CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate,StabalizationTemplate
 
 # API details for NautIQ discovery
-API_META = {"name": "AddAPI", "version": "0.6"}
+API_META = {"name": "SealipTemplates", "version": "0.1"}
 
 # Core runtime classes used by app.py
 ACTION_CLASS = AddAction
 RESULTS_CLASSES = [AddResults, GraphResults]
-TEMPLATE_CLASSES = [CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate, StabalizationTemplate]
+TEMPLATE_CLASSES = [SNTemplate, CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate, StabalizationTemplate]
 DOWNLOADABLE_CLASS = AddDownloadable
 
 

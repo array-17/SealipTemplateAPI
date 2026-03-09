@@ -212,6 +212,42 @@ class AddDownloadable(DownloadableClass):
         else:
             raise ValueError(f"Unsupported format: {file_format}")
         
+
+
+class SNTemplate(Template):
+    """
+    Template class to define the structure of the Master input S-N curve parameters.
+    """
+
+    def __init__(self):
+        self.template = define_template( name="S-N Data",
+    description="Template for defining S-N Data",
+    node_definitions=[
+        {
+            "type": "group",
+            "name": "Material",  # top-level group
+            "children": [
+                {
+                    "type": "group",
+                    "name": "Material Template",
+                    "children": [
+                        {"type": "parameter", "name": "m1", "parameter_type": "number", "units": "-"},
+                        {"type": "parameter", "name": "Loga1", "parameter_type": "number", "units": "-"},
+                        {"type": "parameter", "name": "InflectionPoint", "parameter_type": "number", "units": "MPa"},
+                        {"type": "parameter", "name": "m2", "parameter_type": "number", "units": "-"},
+                        {"type": "parameter", "name": "Loga2", "parameter_type": "number", "units": "-"}
+                    ]
+                }
+            ],
+        }
+    ],)
+
+    def to_frontend_parameters(self):
+        return self.template.to_frontend_parameters()
+
+    def toFrontend_parameters(self):
+        return self.to_frontend_parameters()
+
 class CableTemplate(Template):
     """
     Template class to define the structure of the Master input cableparameters.
