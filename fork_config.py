@@ -6,12 +6,12 @@ Put all fork-specific metadata and class selections in this file.
 """
 
 
-svc_name_ = "AddAppService"
-svc_display_name_ = "AddApp Flask App Service"
-svc_description_ = "Runs the AddApp Flask app as a Windows service."
-template_tags = ["math", "addition", "example"]  # Example tags for this API
+svc_name_ = "SealipTemplateService"
+svc_display_name_ = "Sealip Template Service"
+svc_description_ = "Runs the Sealip Template Flask app as a Windows service."
+template_tags = ["sealip", "cable", "cps", "environment"]  # Example tags for this API
 
-from Add import AddAction, AddResults, AddTemplate, GraphResults, AddDownloadable
+from Sealip import AddAction, AddResults, GraphResults, AddDownloadable, CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate,StabalizationTemplate
 
 # API details for NautIQ discovery
 API_META = {"name": "AddAPI", "version": "0.6"}
@@ -19,7 +19,7 @@ API_META = {"name": "AddAPI", "version": "0.6"}
 # Core runtime classes used by app.py
 ACTION_CLASS = AddAction
 RESULTS_CLASSES = [AddResults, GraphResults]
-TEMPLATE_CLASSES = [AddTemplate]
+TEMPLATE_CLASSES = [CableTemplate, CPSTemplate, EnvironmentTemplate, StructuralTemplate, ScourBurialTemplate, StabalizationTemplate]
 DOWNLOADABLE_CLASS = AddDownloadable
 
 
