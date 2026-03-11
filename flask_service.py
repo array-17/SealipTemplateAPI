@@ -78,9 +78,17 @@ class FlaskService(win32serviceutil.ServiceFramework):
         servicemanager.LogInfoMsg("Starting Flask service...")
 
         # Resolve real python.exe even when running under pythonservice.exe
+        # pythonservice.exe is installed at .venv\ (venv root),
+        # but python.exe lives at .venv\Scripts\python.exe
         base_python_exe = getattr(sys, "_base_executable", None) or sys.executable
         if base_python_exe.lower().endswith("pythonservice.exe"):
-            base_python_exe = os.path.join(os.path.dirname(base_python_exe), "python.exe")
+            _svc_dir = os.path.dirname(base_python_exe)
+            _scripts_candidate = os.path.join(_svc_dir, "Scripts", "python.exe")
+            _same_dir_candidate = os.path.join(_svc_dir, "python.exe")
+            if os.path.exists(_scripts_candidate):
+                base_python_exe = _scripts_candidate
+            elif os.path.exists(_same_dir_candidate):
+                base_python_exe = _same_dir_candidate
 
         script_dir = os.path.dirname(__file__)
         script_path = os.path.join(script_dir, "app.py")
