@@ -364,4 +364,18 @@ if __name__ == '__main__':
             return sock.getsockname()[1]
 
     port = _find_free_port()
+
+    def _get_lan_ip():
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.connect(("8.8.8.8", 80))
+                return sock.getsockname()[0]
+        except OSError:
+            return "127.0.0.1"
+
+    lan_ip = _get_lan_ip()
+    print(f"SealipTemplateAPI listening on http://127.0.0.1:{port}")
+    if lan_ip != "127.0.0.1":
+        print(f"SealipTemplateAPI LAN address: http://{lan_ip}:{port}")
+    print(f"SealipTemplateAPI discovery endpoint: http://127.0.0.1:{port}/NautAPI")
     app.run(host='0.0.0.0', port=port)
